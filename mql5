@@ -1,0 +1,121 @@
+
+// Forex Robot Easy Team
+// www.forexroboteasy.com
+
+#property strict
+
+// Input parameters
+input int LeftCandles = 5; // Number of candles to the left of the main candle
+input int RightCandles = 2; // Number of candles to the right of the main candle
+input color UpArrowColor = clrGreen; // Color for up arrows
+input color DownArrowColor = clrRed; // Color for down arrows
+input int ArrowSize = 4; // Size of the arrows
+
+// Global variables
+int prevFractal = 0; // Previous fractal level
+int prevSupportLevel = 0; // Previous support level
+int prevResistanceLevel = 0; // Previous resistance level
+
+// Custom indicator buffers
+double FractalsBuffer[];
+
+// Custom indicator initialization function
+int OnInit()
+{
+    // Set indicator buffers
+    SetIndexBuffer(0, FractalsBuffer, INDICATOR_DATA);
+
+    // Set indicator label
+    IndicatorSetString(INDICATOR_SHORTNAME, 'Full Fractals MT5');
+
+    return(INIT_SUCCEEDED);
+}
+
+// Custom indicator calculation function
+int OnCalculate(const int rates_total,
+               const int prev_calculated,
+               const datetime &time[],
+               const double &open[],
+               const double &high[],
+               const double &low[],
+               const double &close[],
+               const long &tick_volume[],
+               const long &volume[],
+               const int &spread[])
+{
+    // Calculate the main fractal level
+    int mainFractal = iFractals(Symbol(), 0, MODE_UPPER, 0);
+
+    // Calculate the previous main fractal level
+    int prevMainFractal = iFractals(Symbol(), 0, MODE_UPPER, 1);
+
+    // Check if a new fractal is formed
+    if(mainFractal != prevMainFractal)
+    {
+        // Check if the main fractal is an up fractal
+        if(mainFractal > prevMainFractal)
+        {
+            // Check if the previous fractal was a down fractal
+            if(prevFractal < mainFractal)
+            {
+                // Set the previous support level
+                prevSupportLevel = prevFractal;
+            }
+
+            // Set the previous resistance level
+            prevResistanceLevel = mainFractal;
+
+            // Draw an up arrow on the main fractal candle
+            if(mainFractal > 0)
+            {
+                FractalsBuffer[mainFractal] = high[mainFractal] + (ArrowSize * Point);
+            }
+        }
+        // Check if the main fractal is a down fractal
+        else if(mainFractal < prevMainFractal)
+        {
+            // Check if the previous fractal was an up fractal
+            if(prevFractal > mainFractal)
+            {
+                // Set the previous resistance level
+                prevResistanceLevel = prevFractal;
+            }
+
+            // Set the previous support level
+            prevSupportLevel = mainFractal;
+
+            // Draw a down arrow on the main fractal candle
+            if(mainFractal > 0)
+            {
+                FractalsBuffer[mainFractal] = low[mainFractal] - (ArrowSize * Point);
+            }
+        }
+
+        // Set the previous fractal level
+        prevFractal = mainFractal;
+    }
+
+    // Check if multiple fractals have occurred at the same level
+    if(FractalsBuffer[prevSupportLevel] == 0 && FractalsBuffer[prevResistanceLevel] == 0)
+    {
+        // Highlight the support and resistance levels on the chart
+        if(prevSupportLevel > 0)
+        {
+            FractalsBuffer[prevSupportLevel] = low[prevSupportLevel] - (ArrowSize * Point);
+        }
+
+        if(prevResistanceLevel > 0)
+        {
+            FractalsBuffer[prevResistanceLevel] = high[prevResistanceLevel] + (ArrowSize * Point);
+        }
+    }
+
+    return(rates_total);
+}
+
+// Custom indicator deinitialization function
+void OnDeinit(const int reason)
+{
+    // Clear the indicator buffers
+    ArrayInitialize(FractalsBuffer, 0);
+}
